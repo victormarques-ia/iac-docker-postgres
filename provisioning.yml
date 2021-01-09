@@ -1,0 +1,4 @@
+---
+- hosts: ubuntu_docker
+  roles:
+    - docker

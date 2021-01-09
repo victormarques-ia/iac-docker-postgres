@@ -1,0 +1,92 @@
+---
+- name: "Update apt"
+  shell: "apt-get update"
+  args:
+    warn: false
+  become: yes
+
+- name: "Create docker sudo group"
+  group:
+    name: "{{ docker_group_name }}"
+    state: present
+  become: yes
+
+- name: "Add user to the docker group"
+  user:
+    name: "{{ user_group_name }}"
+    groups: "{{ docker_group_name }}"
+    append: true
+  become: yes
+
+- meta: reset_connection
+
+- name: "Install docker necessary packages"
+  apt:
+    update_cache: yes
+    state: latest
+    name:
+      [
+        "apt-transport-https",
+        "ca-certificates",
+        "curl",
+        "gpg-agent",
+        "software-properties-common",
+      ]
+  become: yes
+
+- name: "Instala o docker no sistema"
+  apt:
+    name: ["docker.io"]
+    state: latest
+  become: yes
+
+- name: "Install Python dependencies"
+  apt:
+    update_cache: yes
+    state: latest
+    name: python3-pip
+  become: yes
+
+- name: "Intall 'Docker SDK for Python'"
+  pip:
+    name: docker
+
+- name: "Pull PostgreSQL image"
+  docker_image:
+    name: "postgres"
+    tag: "{{ postgres_tag }}"
+
+- name: "Create PostgreSQL container"
+  docker_container:
+    name: "postgres"
+    image: "postgres:{{ postgres_tag }}"
+    state: present
+    env:
+      POSTGRES_USER: "{{ postgres_user }}"
+      POSTGRES_PASSWORD: "{{ postgres_password }}"
+
+- name: "Init PostgresSQL container"
+  docker_container:
+    name: "postgres"
+    image: "postgres:{{ postgres_tag }}"
+    state: started
+    restart_policy: "always"
+    memory: "512m"
+    ports:
+      - "{{ postgres_port }}:5432"
+    env:
+      POSTGRES_USER: "{{ postgres_user }}"
+      POSTGRES_PASSWORD: "{{ postgres_password }}"
+  register: postgres_container
+
+- name: "Wait PostgreSQL initialiaze"
+  wait_for:
+    port: "{{ postgres_port }}"
+    delay: 5
+  when: postgres_container.changed
+
+- name: "Ensure necessary packages for (Debian/Ubuntu)"
+  apt:
+    name: ["postgresql", "libpq-dev"]
+  become: yes
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'

@@ -1,0 +1,7 @@
+---
+docker_group_name: docker
+user_group_name: vagrant
+postgres_tag: 11
+postgres_port: 5432
+postgres_user: postgres
+postgres_password: docker
